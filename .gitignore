@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.venv
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+
+# Regenerable crawl artifacts (rerun the CLI commands to rebuild)
+data/recrawl.db
+data/index.pkl
+data/graph.pkl
+data/cc/*.warc*
+data/cc/captures/
+*.log
+data/*.log

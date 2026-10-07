@@ -1,0 +1,44 @@
+[project]
+name = "recrawl"
+version = "0.1.0"
+description = "Freshness-aware recrawl scheduler with change detection and tf-idf search"
+readme = "README.md"
+authors = [
+    { name = "haibaaa", email = "9700samarth@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "feedparser>=6.0.14",
+    "requests>=2.34.2",
+    "trafilatura>=2.3.0",
+    "warcio>=1.8.1",
+]
+
+[project.scripts]
+recrawl = "recrawl.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.10,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.414",
+    "pytest>=9.1.1",
+    "ruff>=0.16.10",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+
+[tool.pyright]
+typeCheckingMode = "standard"
+exclude = [".venv"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["error"]
