@@ -70,6 +70,10 @@ def main(argv: list[str] | None = None) -> int:
     eval_p.add_argument("queryset", type=Path, help="Path to judged queries (JSONL)")
     eval_p.add_argument("--k", type=int, default=5, help="Rank cutoff")
 
+    inspect_p = sub.add_parser("inspect", help="Inspect intermediate IR postings and weights")
+    inspect_p.add_argument("term", help="Term to inspect in inverted index")
+    inspect_p.add_argument("--k", type=int, default=10, help="Max postings to display")
+
     args = parser.parse_args(argv)
     if args.command == "seeds":
         return _cmd_seeds()
@@ -91,6 +95,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_search(args)
     if args.command == "eval-search":
         return _cmd_eval_search(args)
+    if args.command == "inspect":
+        return _cmd_inspect(args)
     parser.error(f"Unknown command: {args.command}")
     return 2
 
@@ -296,4 +302,52 @@ def _cmd_status() -> int:
     if passes:
         print(f"last pass      : {passes[-1]:.0f} (epoch)")
     store.close()
+    return 0
+
+
+def _cmd_inspect(args: argparse.Namespace) -> int:
+    import math
+
+    from recrawl.indexer import TITLE_ZONE_WEIGHT, load_index
+    from recrawl.textproc import analyze, tokenize
+
+    if not INDEX_PATH.exists():
+        print(f"Index not found at {INDEX_PATH}. Run 'recrawl index' first.")
+        return 1
+
+    index = load_index(INDEX_PATH)
+    raw_term = args.term.strip()
+    analyzed = analyze(tokenize(raw_term))
+    if not analyzed:
+        print(f"Term '{raw_term}' was filtered out (empty, stopword, or non-alphabetic).")
+        return 0
+
+    stemmed = analyzed[0]
+    postings = index.postings.get(stemmed, [])
+    df = len(postings)
+    n_docs = index.doc_count
+    idf = math.log(1.0 + n_docs / (df + 0.5)) if df else 0.0
+
+    print(f"Raw term              : {raw_term}")
+    print(f"Stemmed form (Porter) : {stemmed}")
+    print(f"Corpus docs count (N) : {n_docs}")
+    print(f"Document freq (df)    : {df} docs ({df / max(1, n_docs) * 100:.1f}%)")
+    print(f"Inverse doc freq (idf): {idf:.4f}")
+
+    if not postings:
+        print(f"\nNo postings found for '{stemmed}'.")
+        return 0
+
+    print(f"\nPostings sample (showing {min(args.k, len(postings))} of {len(postings)}):")
+    print(
+        f"{'doc_id':>6s}  {'tf_body':>7s}  {'tf_title':>8s}  {'weight_d':>8s}  {'norm_d':>7s}  url"
+    )
+    for posting in postings[: args.k]:
+        doc = index.docs[posting.doc_id]
+        weight_d = 1.0 + math.log(posting.tf_body + TITLE_ZONE_WEIGHT * posting.tf_title)
+        norm_d = index.doc_norms[TITLE_ZONE_WEIGHT][posting.doc_id]
+        print(
+            f"{posting.doc_id:6d}  {posting.tf_body:7.1f}  {posting.tf_title:8.1f}  "
+            f"{weight_d:8.4f}  {norm_d:7.3f}  {doc.url[:60]}"
+        )
     return 0

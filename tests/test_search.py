@@ -158,3 +158,21 @@ def test_bm25_ranks_and_filters_site(tmp_path: Path) -> None:
         index, ParsedQuery(terms=["talks"], title_only=set(), site="www.example.com"), k=10
     )
     assert all(hit.host == "www.example.com" for hit in narrowed)
+
+
+def test_cli_inspect_displays_postings(tmp_path: Path, monkeypatch) -> None:
+    import recrawl.config as cfg
+    from recrawl.cli import main
+    from recrawl.indexer import save_index
+
+    store = _doc_store(tmp_path)
+    index = build_index(store)
+    store.close()
+    index_path = tmp_path / "index.pkl"
+    save_index(index, index_path)
+    monkeypatch.setattr(cfg, "INDEX_PATH", index_path)
+    monkeypatch.setattr("recrawl.cli.INDEX_PATH", index_path)
+
+    exit_code = main(["inspect", "talks"])
+    assert exit_code == 0
+
